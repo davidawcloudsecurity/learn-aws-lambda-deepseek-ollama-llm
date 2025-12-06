@@ -73,9 +73,12 @@ sudo systemctl start ollama
 echo "Waiting for Ollama to start..."
 sleep 10
 
-# Pull the DeepSeek model
-echo "Pulling DeepSeek model..."
-ollama pull deepseek-r1:8b
+# Pull a smaller model for better performance
+echo "Pulling TinyLlama model..."
+ollama pull tinyllama
+
+# Update app.js to use the correct default model
+sed -i 's/deepseek-r1:8b/tinyllama:latest/g' /opt/ollama-api/app.js
 
 # Start API server
 sudo systemctl start ollama-api
