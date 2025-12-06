@@ -1,0 +1,149 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Deploy Ollama DeepSeek API on EC2 Ubuntu instance
+
+Parameters:
+  InstanceType:
+    Type: String
+    Default: "t3.large"
+    Description: "EC2 instance type (recommend t3.large or larger for Ollama)"
+    AllowedValues:
+      - t3.medium
+      - t3.large
+      - t3.xlarge
+      - t3.2xlarge
+      - m5.large
+      - m5.xlarge
+      - m5.2xlarge
+
+  KeyPairName:
+    Type: AWS::EC2::KeyPair::KeyName
+    Description: "EC2 Key Pair for SSH access"
+
+  AllowedCIDR:
+    Type: String
+    Default: "0.0.0.0/0"
+    Description: "CIDR block allowed to access the API (default: anywhere)"
+
+Resources:
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      Tags:
+        - Key: Name
+          Value: OllamaVPC
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: OllamaIGW
+
+  AttachGateway:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref VPC
+      InternetGatewayId: !Ref InternetGateway
+
+  PublicSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: 10.0.1.0/24
+      AvailabilityZone: !Select [0, !GetAZs ""]
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: OllamaPublicSubnet
+
+  RouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: OllamaRouteTable
+
+  PublicRoute:
+    Type: AWS::EC2::Route
+    DependsOn: AttachGateway
+    Properties:
+      RouteTableId: !Ref RouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  SubnetRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnet
+      RouteTableId: !Ref RouteTable
+
+  SecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for Ollama API server
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: !Ref AllowedCIDR
+          Description: SSH access
+        - IpProtocol: tcp
+          FromPort: 8080
+          ToPort: 8080
+          CidrIp: !Ref AllowedCIDR
+          Description: API access
+      Tags:
+        - Key: Name
+          Value: OllamaSecurityGroup
+
+  EC2Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: ami-0e86e20dae90224e1  # Ubuntu 22.04 LTS in us-east-1
+      InstanceType: !Ref InstanceType
+      KeyName: !Ref KeyPairName
+      SubnetId: !Ref PublicSubnet
+      SecurityGroupIds:
+        - !Ref SecurityGroup
+      BlockDeviceMappings:
+        - DeviceName: /dev/sda1
+          Ebs:
+            VolumeSize: 30
+            VolumeType: gp3
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          apt-get update
+          apt-get install -y git
+          
+          # Clone or download the application files
+          # Note: You'll need to upload app.js and package.json to the instance
+          # This is a placeholder for the actual deployment method
+          
+          echo "EC2 instance ready for Ollama installation"
+          echo "Run the install.sh script to complete setup"
+      Tags:
+        - Key: Name
+          Value: OllamaAPIServer
+
+Outputs:
+  InstanceId:
+    Description: "EC2 Instance ID"
+    Value: !Ref EC2Instance
+
+  PublicIP:
+    Description: "Public IP address of the EC2 instance"
+    Value: !GetAtt EC2Instance.PublicIp
+
+  APIEndpoint:
+    Description: "API endpoint URL"
+    Value: !Sub "http://${EC2Instance.PublicIp}:8080/chat"
+
+  SSHCommand:
+    Description: "SSH command to connect to the instance"
+    Value: !Sub "ssh -i ${KeyPairName}.pem ubuntu@${EC2Instance.PublicIp}"
