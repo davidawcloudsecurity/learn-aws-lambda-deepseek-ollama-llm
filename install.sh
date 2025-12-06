@@ -15,14 +15,16 @@ curl -fsSL https://ollama.com/install.sh | sh
 
 # Create app directory
 sudo mkdir -p /opt/ollama-api
-sudo chown $USER:$USER /opt/ollama-api
+sudo mkdir -p /opt/ollama-models
+sudo chown root:root /opt/ollama-api
+sudo chown root:root /opt/ollama-models
 
 # Copy application files
-cp app.js package.json /opt/ollama-api/
+sudo cp app.js package.json /opt/ollama-api/
 cd /opt/ollama-api
 
 # Install dependencies
-npm install --production
+sudo npm install --production
 
 # Create systemd service for Ollama
 sudo tee /etc/systemd/system/ollama.service > /dev/null <<EOF
@@ -32,12 +34,12 @@ After=network.target
 
 [Service]
 Type=simple
-User=$USER
-WorkingDirectory=/home/$USER
+User=root
+WorkingDirectory=/opt
 ExecStart=/usr/local/bin/ollama serve
 Restart=always
 RestartSec=3
-Environment=OLLAMA_MODELS=/home/$USER/.ollama/models
+Environment=OLLAMA_MODELS=/opt/ollama-models
 
 [Install]
 WantedBy=multi-user.target
@@ -52,7 +54,7 @@ Requires=ollama.service
 
 [Service]
 Type=simple
-User=$USER
+User=root
 WorkingDirectory=/opt/ollama-api
 ExecStart=/usr/bin/node app.js
 Restart=always
@@ -78,7 +80,7 @@ echo "Pulling TinyLlama model..."
 ollama pull tinyllama
 
 # Update app.js to use the correct default model
-sed -i 's/deepseek-r1:8b/tinyllama:latest/g' /opt/ollama-api/app.js
+sudo sed -i 's/deepseek-r1:8b/tinyllama:latest/g' /opt/ollama-api/app.js
 
 # Start API server
 sudo systemctl start ollama-api
