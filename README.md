@@ -8,4 +8,5 @@ https://github.com/open-webui/open-webui
 ### How to ai agents
 ```
 https://strandsagents.com/latest/documentation/docs/community/integrations/ag-ui/
+https://docs.copilotkit.ai/
 ```
