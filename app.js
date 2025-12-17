@@ -9,7 +9,7 @@ app.use(express.static('public'));
 
 app.post('/chat', async (req, res) => {
     const defaultMessage = "What is the meaning of life?";
-    const defaultModel = "deepseek-r1:8b";
+    const defaultModel = "tinyllama:latest";
     
     const { user_message = defaultMessage, model_name = defaultModel } = req.body;
 
